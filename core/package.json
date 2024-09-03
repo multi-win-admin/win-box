@@ -1,0 +1,41 @@
+{
+  "name": "win-box",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "main": "./dist/index.js",
+      "module": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {},
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/react": "18.3.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/multi-win-admin/win-box.git",
+    "directory": "win-box"
+  },
+  "bugs": {
+    "url": "https://github.com/multi-win-admin/win-box/issues"
+  },
+  "keywords": [
+    "win-box",
+    "react"
+  ],
+  "author": "multi-win-admin",
+  "license": "MIT"
+}
