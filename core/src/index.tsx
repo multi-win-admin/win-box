@@ -45,6 +45,12 @@ type WinBoxProps = Children &
     onMinimize?: () => void;
   };
 
+type ResizingProps = Children &
+  DivProps & {
+    /** 可调整的方位 */
+    direction: 'north' | 'south' | 'west' | 'east' | 'northWest' | 'northEast' | 'southWest' | 'southEast';
+  };
+
 type HeaderProps = Children & DivProps & {};
 
 type TitleProps = Children & DivProps & {};
@@ -64,23 +70,19 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
   return (
     <Primitive.div ref={mergeRefs([ref, forwardedRef])} wb-root="">
       {SlottableWithNestedChildren(props, (child) => (
-        <div>
-          {child}
-          <div wb-n="" onMouseDown={() => {}} onMouseUp={() => {}} />
-          <div wb-s="" />
-          <div wb-w="" />
-          <div wb-e="" />
-          <div wb-nw="" />
-          <div wb-ne="" />
-          <div wb-se="" />
-          <div wb-sw="" />
-        </div>
+        <div>{child}</div>
       ))}
     </Primitive.div>
   );
 });
 
-WinBox.displayName = 'WinBox';
+WinBox.displayName = 'WinBoxRoot';
+
+const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forwardedRef) => {
+  return <Primitive.div wb-resizing=""></Primitive.div>;
+});
+
+Resizing.displayName = 'WinBoxResizing';
 
 const Header = React.forwardRef<HTMLDivElement, HeaderProps>((props, forwardedRef) => {
   return <Primitive.div></Primitive.div>;
@@ -105,6 +107,7 @@ const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) =
 Body.displayName = 'WinBoxBody';
 
 export { WinBox as WinBoxRoot };
+export { Resizing as WinBoxResizing };
 export { Header as WinBoxHeader };
 export { Title as WinBoxTitle };
 export { Control as WinBoxControl };
