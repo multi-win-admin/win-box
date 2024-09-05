@@ -4,7 +4,7 @@ import * as React from 'react';
 type Children = { children?: React.ReactNode };
 type DivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
 
-export type Position = {
+type Position = {
   x: number;
   y: number;
 };
@@ -14,7 +14,7 @@ type WinBoxProps = Children &
     /** 窗口唯一ID */
     id?: number | string;
     /** 窗口层级 */
-    index: number;
+    index?: number;
     /** 窗口位置 */
     point?: Position;
     /** 窗口是否居中 */
@@ -64,13 +64,71 @@ type ControlButtonProps = Children &
 
 type BodyProps = Children & DivProps & {};
 
+type Context = {
+  winBoxId: string | number;
+  width: () => void;
+};
+
+type State = {
+  ponit: Position;
+  width: number;
+  height: number;
+  hidde: boolean;
+};
+
+type Store = {
+  subscribe: (callback: () => void) => () => void;
+  snapshot: () => State;
+  setState: <K extends keyof State>(key: K, value: State[K], opts?: any) => void;
+  emit: () => void;
+};
+
+const WinBoxContext = React.createContext<Context | null>(null);
+const useWinBox = () => React.useContext(WinBoxContext);
+
+const StoreContext = React.createContext<Store | null>(null);
+const useStore = () => React.useContext(StoreContext);
+
 const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
+  const state = useLazyRef<State>(() => ({
+    /** 窗口坐标 */
+    ponit: { x: 0, y: 0 },
+    /** 窗口宽度 */
+    width: props.width ?? 0,
+    /** 窗口高度 */
+    height: props.height ?? 0,
+    /** 是否隐藏窗口 */
+    hidde: true,
+  }));
+  const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
   const ref = React.useRef<HTMLDivElement>(null);
+
+  const store: Store = React.useMemo(() => {
+    return {
+      subscribe: (cb) => {
+        listeners.current.add(cb);
+        return () => listeners.current.delete(cb);
+      },
+      snapshot: () => {
+        return state.current;
+      },
+      setState: (key, value) => {
+        if (Object.is(state.current[key], value)) return;
+        state.current[key] = value;
+      },
+      emit: () => {
+        listeners.current.forEach((l) => l());
+      },
+    };
+  }, []);
 
   return (
     <Primitive.div ref={mergeRefs([ref, forwardedRef])} wb-root="">
       {SlottableWithNestedChildren(props, (child) => (
-        <div>{child}</div>
+        <StoreContext.Provider value={store}>
+          {/* <WinBoxContext.Provider value={context}>{child}</WinBoxContext.Provider> */}
+          {child}
+        </StoreContext.Provider>
       ))}
     </Primitive.div>
   );
@@ -79,7 +137,25 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
 WinBox.displayName = 'WinBoxRoot';
 
 const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forwardedRef) => {
-  return <Primitive.div wb-resizing=""></Primitive.div>;
+  const actionHandlers = {
+    north: () => {},
+    south: () => {},
+    west: () => {},
+    east: () => {},
+    northWest: () => {},
+    northEast: () => {},
+    southWest: () => {},
+    southEast: () => {},
+  };
+
+  function onMouseDown() {
+    const handler = actionHandlers[props.direction];
+    if (handler) {
+      handler();
+    }
+  }
+
+  return <Primitive.div wb-resizing={props.direction} onMouseDown={onMouseDown}></Primitive.div>;
 });
 
 Resizing.displayName = 'WinBoxResizing';
@@ -106,6 +182,17 @@ const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) =
 
 Body.displayName = 'WinBoxBody';
 
+const pkg = Object.assign(WinBox, {
+  Resizing,
+  Header,
+  Title,
+  Control,
+  ControlButton,
+  Body,
+});
+
+export { pkg as WinBox };
+
 export { WinBox as WinBoxRoot };
 export { Resizing as WinBoxResizing };
 export { Header as WinBoxHeader };
@@ -113,6 +200,21 @@ export { Title as WinBoxTitle };
 export { Control as WinBoxControl };
 export { ControlButton as WinBoxControlButton };
 export { Body as WinBoxBody };
+
+/**
+ * 延迟初始化 Ref
+ * @param fn
+ * @returns
+ */
+function useLazyRef<T>(fn: () => T) {
+  const ref = React.useRef<T>();
+
+  if (ref.current === undefined) {
+    ref.current = fn();
+  }
+
+  return ref as React.MutableRefObject<T>;
+}
 
 /**
  * 合并传入的多个 ref 或回调函数
