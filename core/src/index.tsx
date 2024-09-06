@@ -4,11 +4,6 @@ import * as React from 'react';
 type Children = { children?: React.ReactNode };
 type DivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type Position = {
-  x: number;
-  y: number;
-};
-
 type WinBoxProps = Children &
   DivProps & {
     /** 窗口唯一ID */
@@ -16,7 +11,8 @@ type WinBoxProps = Children &
     /** 窗口层级 */
     index?: number;
     /** 窗口位置 */
-    point?: Position;
+    x: number;
+    y: number;
     /** 窗口是否居中 */
     center?: boolean;
     /** 窗口宽度 */
@@ -36,7 +32,7 @@ type WinBoxProps = Children &
     /** 是否允许窗口移动到视窗外 */
     overflow?: boolean;
     /** 窗口移动时回调 */
-    onMove?: (point: Position) => void;
+    onMove?: (x: number, y: number) => void;
     /** 窗口调整大小时回调 */
     onResize?: (width: number, height: number) => void;
     /** 窗口进入全屏时回调 */
@@ -64,16 +60,27 @@ type ControlButtonProps = Children &
 
 type BodyProps = Children & DivProps & {};
 
+/**
+ * 存储上下文
+ */
 type Context = {
+  /** winBox 唯一 ID */
   winBoxId: string | number;
-  width: () => void;
+  minHeight: number;
+  minWidth: number;
+  maxHeight: number;
+  maxWidth?: number;
 };
 
+/**
+ * 存储状态
+ */
 type State = {
-  ponit: Position;
+  x: number;
+  y: number;
   width: number;
   height: number;
-  hidde: boolean;
+  hide: boolean;
 };
 
 type Store = {
@@ -90,21 +97,25 @@ const StoreContext = React.createContext<Store | null>(null);
 const useStore = () => React.useContext(StoreContext);
 
 const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
+  const { width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
+
   const state = useLazyRef<State>(() => ({
-    /** 窗口坐标 */
-    ponit: { x: 0, y: 0 },
+    /** 窗口x坐标 */
+    x: 0,
+    /** 窗口y坐标 */
+    y: 0,
     /** 窗口宽度 */
-    width: props.width ?? 0,
+    width: width ?? 0,
     /** 窗口高度 */
-    height: props.height ?? 0,
+    height: height ?? 0,
     /** 是否隐藏窗口 */
-    hidde: true,
+    hide: true,
   }));
   const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
   const ref = React.useRef<HTMLDivElement>(null);
 
-  const store: Store = React.useMemo(() => {
-    return {
+  const store: Store = React.useMemo(
+    () => ({
       subscribe: (cb) => {
         listeners.current.add(cb);
         return () => listeners.current.delete(cb);
@@ -115,19 +126,33 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
       setState: (key, value) => {
         if (Object.is(state.current[key], value)) return;
         state.current[key] = value;
+
+        store.emit();
       },
       emit: () => {
         listeners.current.forEach((l) => l());
       },
-    };
-  }, []);
+    }),
+    [],
+  );
+
+  // 上下文环境
+  const context: Context = React.useMemo(
+    () => ({
+      winBoxId: '',
+      minHeight: minHeight ?? 0,
+      minWidth: minWidth ?? 0,
+      maxHeight: maxHeight ?? 0,
+      maxWidth: maxWidth ?? 0,
+    }),
+    [],
+  );
 
   return (
-    <Primitive.div ref={mergeRefs([ref, forwardedRef])} wb-root="">
+    <Primitive.div ref={mergeRefs([ref, forwardedRef])} {...etc} wb-root="">
       {SlottableWithNestedChildren(props, (child) => (
         <StoreContext.Provider value={store}>
-          {/* <WinBoxContext.Provider value={context}>{child}</WinBoxContext.Provider> */}
-          {child}
+          <WinBoxContext.Provider value={context}>{child}</WinBoxContext.Provider>
         </StoreContext.Provider>
       ))}
     </Primitive.div>
