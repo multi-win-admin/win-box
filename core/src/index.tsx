@@ -1,5 +1,7 @@
 import { Primitive } from '@radix-ui/react-primitive';
 import * as React from 'react';
+import { useId } from '@radix-ui/react-id';
+import { addWindowListener, removeWindowListener } from './helper';
 
 type Children = { children?: React.ReactNode };
 type DivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -11,8 +13,8 @@ type WinBoxProps = Children &
     /** 窗口层级 */
     index?: number;
     /** 窗口位置 */
-    x: number;
-    y: number;
+    x?: number;
+    y?: number;
     /** 窗口是否居中 */
     center?: boolean;
     /** 窗口宽度 */
@@ -41,10 +43,12 @@ type WinBoxProps = Children &
     onMinimize?: () => void;
   };
 
+type WinBoxContent = Children & DivProps & {};
+
 type ResizingProps = Children &
   DivProps & {
     /** 可调整的方位 */
-    direction: 'north' | 'south' | 'west' | 'east' | 'northWest' | 'northEast' | 'southWest' | 'southEast';
+    type: 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
   };
 
 type HeaderProps = Children & DivProps & {};
@@ -55,7 +59,7 @@ type ControlProps = Children & DivProps & {};
 
 type ControlButtonProps = Children &
   DivProps & {
-    type?: 'fullscreen';
+    type?: 'fullscreen' | 'close';
   };
 
 type BodyProps = Children & DivProps & {};
@@ -65,7 +69,7 @@ type BodyProps = Children & DivProps & {};
  */
 type Context = {
   /** winBox 唯一 ID */
-  winBoxId: string | number;
+  winBoxId: string;
   minHeight: number;
   minWidth: number;
   maxHeight: number;
@@ -96,23 +100,25 @@ const useWinBox = () => React.useContext(WinBoxContext);
 const StoreContext = React.createContext<Store | null>(null);
 const useStore = () => React.useContext(StoreContext);
 
-const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
-  const { width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
+const eventOptionsPassive = { capture: true, passive: true };
 
+const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
   const state = useLazyRef<State>(() => ({
     /** 窗口x坐标 */
     x: 0,
     /** 窗口y坐标 */
     y: 0,
     /** 窗口宽度 */
-    width: width ?? 0,
+    width: props.width ?? 0,
     /** 窗口高度 */
-    height: height ?? 0,
+    height: props.height ?? 0,
     /** 是否隐藏窗口 */
     hide: true,
   }));
   const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
-  const ref = React.useRef<HTMLDivElement>(null);
+  const { id, width: _, height: __, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
+
+  const winBoxId = id ?? useId();
 
   const store: Store = React.useMemo(
     () => ({
@@ -139,7 +145,7 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
   // 上下文环境
   const context: Context = React.useMemo(
     () => ({
-      winBoxId: '',
+      winBoxId,
       minHeight: minHeight ?? 0,
       minWidth: minWidth ?? 0,
       maxHeight: maxHeight ?? 0,
@@ -149,38 +155,65 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
   );
 
   return (
-    <Primitive.div ref={mergeRefs([ref, forwardedRef])} {...etc} wb-root="">
-      {SlottableWithNestedChildren(props, (child) => (
-        <StoreContext.Provider value={store}>
-          <WinBoxContext.Provider value={context}>{child}</WinBoxContext.Provider>
-        </StoreContext.Provider>
-      ))}
-    </Primitive.div>
+    <StoreContext.Provider value={store}>
+      <WinBoxContext.Provider value={context}>
+        <WinBoxContent ref={forwardedRef} {...etc} />
+      </WinBoxContext.Provider>
+    </StoreContext.Provider>
   );
 });
 
 WinBox.displayName = 'WinBoxRoot';
 
-const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forwardedRef) => {
-  const actionHandlers = {
-    north: () => {},
-    south: () => {},
-    west: () => {},
-    east: () => {},
-    northWest: () => {},
-    northEast: () => {},
-    southWest: () => {},
-    southEast: () => {},
-  };
+const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContent>((props, forwardedRef) => {
+  const context = useWinBox();
+  const width = useWb((state) => state.width);
+  const height = useWb((state) => state.height);
+  const x = useWb((state) => state.x);
+  const y = useWb((state) => state.y);
 
-  function onMouseDown() {
-    const handler = actionHandlers[props.direction];
-    if (handler) {
-      handler();
-    }
+  const { children: _, ...etc } = props;
+
+  return (
+    <Primitive.div
+      ref={forwardedRef}
+      style={{ width, height, top: y, left: x }}
+      {...etc}
+      wb-root=""
+      id={context?.winBoxId}
+    >
+      {props.children}
+    </Primitive.div>
+  );
+});
+
+WinBoxContent.displayName = 'WinBoxContent';
+
+const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forwardedRef) => {
+  const { type, ...etc } = props;
+  const context = useWinBox();
+  const winBoxX = useWb((state) => state.x);
+  const store = useStore();
+
+  function handlerMousemove(e: MouseEvent) {
+    e.preventDefault();
+    const x = e.pageX;
+    store?.setState('width', x - winBoxX);
   }
 
-  return <Primitive.div wb-resizing={props.direction} onMouseDown={onMouseDown}></Primitive.div>;
+  function handlerMouseup(e: Event) {
+    e.preventDefault();
+    removeWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
+    removeWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
+  }
+
+  function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault();
+    addWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
+    addWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
+  }
+
+  return <Primitive.div ref={forwardedRef} {...etc} wb-resizing={type} onMouseDown={onMouseDown}></Primitive.div>;
 });
 
 Resizing.displayName = 'WinBoxResizing';
@@ -258,26 +291,13 @@ function mergeRefs<T = any>(refs: Array<React.MutableRefObject<T> | React.Legacy
   };
 }
 
-function renderChildren(children: React.ReactElement) {
-  const childrenType = children.type as any;
-  // The children is a component
-  if (typeof childrenType === 'function') return childrenType(children.props);
-  // The children is a component with `forwardRef`
-  else if ('render' in childrenType) return childrenType.render(children.props);
-  // It's a string, boolean, etc.
-  else return children;
-}
-
-function SlottableWithNestedChildren(
-  { asChild, children }: { asChild?: boolean; children?: React.ReactNode },
-  render: (child: React.ReactNode) => JSX.Element,
-) {
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(
-      renderChildren(children),
-      { ref: (children as any).ref },
-      render(children.props.children),
-    );
-  }
-  return render(children);
+/**
+ * 获取状态
+ * @param selector
+ * @returns
+ */
+function useWb<T = any>(selector: (state: State) => T) {
+  const store = useStore();
+  const cb = () => selector(store!.snapshot());
+  return React.useSyncExternalStore(store!.subscribe, cb, cb);
 }
