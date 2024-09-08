@@ -191,14 +191,34 @@ WinBoxContent.displayName = 'WinBoxContent';
 
 const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forwardedRef) => {
   const { type, ...etc } = props;
-  const context = useWinBox();
-  const winBoxX = useWb((state) => state.x);
+  // const context = useWinBox();
+  let x: number, y: number;
+  const width = useWb((state) => state.width);
+  const height = useWb((state) => state.height);
+  const winX = useWb((state) => state.x);
+  const winY = useWb((state) => state.y);
   const store = useStore();
 
   function handlerMousemove(e: MouseEvent) {
     e.preventDefault();
-    const x = e.pageX;
-    store?.setState('width', x - winBoxX);
+    const pageX = e.pageX;
+    const pageY = e.pageY;
+    const offsetX = pageX - x;
+    const offsetY = pageY - y;
+
+    if (type === 'e' || type === 'se' || type === 'ne') {
+      store?.setState('width', width + offsetX);
+    } else if (type === 'w' || type === 'sw' || type === 'nw') {
+      store?.setState('x', winX + offsetX);
+      store?.setState('width', width - offsetX);
+    }
+
+    if (type === 's' || type === 'se' || type === 'sw') {
+      store?.setState('height', height + offsetY);
+    } else if (type === 'n' || type === 'ne' || type === 'nw') {
+      store?.setState('y', winY + offsetY);
+      store?.setState('height', height - offsetY);
+    }
   }
 
   function handlerMouseup(e: Event) {
@@ -209,11 +229,21 @@ const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forward
 
   function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     e.preventDefault();
+    x = e.pageX;
+    y = e.pageY;
     addWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
     addWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
   }
 
-  return <Primitive.div ref={forwardedRef} {...etc} wb-resizing={type} onMouseDown={onMouseDown}></Primitive.div>;
+  return (
+    <Primitive.div
+      ref={forwardedRef}
+      {...etc}
+      wb-resizing=""
+      data-resizing={type}
+      onMouseDown={onMouseDown}
+    ></Primitive.div>
+  );
 });
 
 Resizing.displayName = 'WinBoxResizing';
