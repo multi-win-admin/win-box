@@ -1,43 +1,36 @@
 import * as React from 'react';
 import { WinBox as WinBoxPrimitive } from 'win-box';
 import { cn } from '../lib/utils';
-import { cva } from 'class-variance-authority';
 
 const WinBox = React.forwardRef<
   React.ElementRef<typeof WinBoxPrimitive>,
   React.ComponentPropsWithoutRef<typeof WinBoxPrimitive>
->(({ className, ...props }, ref) => (
-  <WinBoxPrimitive ref={ref} className={cn('fixed border border-gray-500 rounded-lg', className)} {...props} />
-));
+>((props, ref) => {
+  const { children, className, ...etc } = props;
+  return (
+    <WinBoxPrimitive
+      ref={ref}
+      className={cn('fixed border rounded-lg overflow-hidden flex flex-col shadow-2xl', className)}
+      {...etc}
+    >
+      <div wb-header className="h-8">
+        <WinBoxPrimitive.Drag className="h-8 cursor-move" />
+      </div>
+      <WinBoxPrimitive.Body className="flex-auto [&_[wb-body-iframe]]:h-full [&_[wb-body-iframe]]:w-full">
+        {children}
+      </WinBoxPrimitive.Body>
+      <WinBoxPrimitive.Resizing type="n" className="absolute h-2 left-0 right-0 top-[-4px] cursor-ns-resize" />
+      <WinBoxPrimitive.Resizing type="s" className="absolute h-2 left-0 right-0 bottom-[-4px] cursor-ns-resize" />
+      <WinBoxPrimitive.Resizing type="w" className="absolute w-2 top-0 bottom-0 left-[-4px] cursor-ew-resize" />
+      <WinBoxPrimitive.Resizing type="e" className="absolute w-2 top-0 bottom-0 right-[-4px] cursor-ew-resize" />
+      <WinBoxPrimitive.Resizing type="nw" className="absolute w-3 h-3 top-[-4px] left-[-4px] cursor-nwse-resize" />
+      <WinBoxPrimitive.Resizing type="ne" className="absolute w-3 h-3 top-[-4px] right-[-4px] cursor-nesw-resize" />
+      <WinBoxPrimitive.Resizing type="sw" className="absolute w-3 h-3 bottom-[-4px] left-[-4px] cursor-nesw-resize" />
+      <WinBoxPrimitive.Resizing type="se" className="absolute w-3 h-3 bottom-[-4px] right-[-4px] cursor-nwse-resize" />
+    </WinBoxPrimitive>
+  );
+});
 
 WinBox.displayName = WinBoxPrimitive.displayName;
 
-const WinBoxResizingVariants = cva('absolute', {
-  variants: {
-    type: {
-      n: 'h-2 left-0 right-0 top-[-4px] cursor-ns-resize',
-      s: 'h-2 left-0 right-0 bottom-[-4px] cursor-ns-resize',
-      w: 'w-2 top-0 bottom-0 left-[-4px] cursor-ew-resize',
-      e: 'w-2 top-0 bottom-0 right-[-4px] cursor-ew-resize',
-      nw: 'w-3 h-3 top-[-4px] left-[-4px] cursor-nwse-resize',
-      ne: 'w-3 h-3 top-[-4px] right-[-4px] cursor-nesw-resize',
-      sw: 'w-3 h-3 bottom-[-4px] left-[-4px] cursor-nesw-resize',
-      se: 'w-3 h-3 bottom-[-4px] right-[-4px] cursor-nwse-resize',
-    },
-  },
-});
-
-const WinBoxResizing = React.forwardRef<
-  React.ElementRef<typeof WinBoxPrimitive.Resizing>,
-  React.ComponentPropsWithoutRef<typeof WinBoxPrimitive.Resizing>
->(({ className, ...props }, ref) => (
-  <WinBoxPrimitive.Resizing
-    ref={ref}
-    className={cn(WinBoxResizingVariants({ type: props.type, className }))}
-    {...props}
-  />
-));
-
-WinBoxResizing.displayName = WinBoxPrimitive.Resizing.displayName;
-
-export { WinBox, WinBoxResizing };
+export { WinBox };

@@ -5,6 +5,7 @@ import { addWindowListener, removeWindowListener } from './helper';
 
 type Children = { children?: React.ReactNode };
 type DivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
+type ButtonProps = React.ComponentPropsWithoutRef<typeof Primitive.button>;
 
 type WinBoxProps = Children &
   DivProps & {
@@ -12,6 +13,8 @@ type WinBoxProps = Children &
     id?: number | string;
     /** 窗口层级 */
     index?: number;
+    /** 打开的url */
+    url?: string;
     /** 窗口位置 */
     x?: number;
     y?: number;
@@ -60,8 +63,8 @@ type ResizingProps = Children &
 type DragProps = Children & DivProps & {};
 
 type ControlProps = Children &
-  DivProps & {
-    type?: 'fullscreen' | 'close';
+  ButtonProps & {
+    type?: 'min' | 'max' | 'full' | 'close';
   };
 
 type BodyProps = Children & DivProps & {};
@@ -82,6 +85,7 @@ type Context = {
  * 存储状态
  */
 type State = {
+  url: string | null;
   x: number;
   y: number;
   width: number;
@@ -105,8 +109,9 @@ const useStore = () => React.useContext(StoreContext);
 const eventOptionsPassive = { capture: true, passive: true };
 
 const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
-  const { id, width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
+  const { id, url, width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
   const state = useLazyRef<State>(() => ({
+    url: url ?? null,
     /** 窗口x坐标 */
     x: 0,
     /** 窗口y坐标 */
@@ -193,12 +198,11 @@ const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContent>((props, fo
   const y = useWb((state) => state.y);
 
   const { children: _, ...etc } = props;
-
   return (
     <Primitive.div
       ref={forwardedRef}
-      style={{ width, height, top: y, left: x }}
       {...etc}
+      style={{ width, height, top: y, left: x }}
       wb-root=""
       id={context?.winBoxId}
     >
@@ -275,7 +279,7 @@ const Drag = React.forwardRef<HTMLDivElement, DragProps>((props, forwardedRef) =
   const store = useStore();
 
   function handlerMousemove(e: MouseEvent) {
-    e.preventDefault();
+    // e.preventDefault();
     const offsetX = e.pageX - x;
     const offsetY = e.pageY - y;
 
@@ -283,8 +287,8 @@ const Drag = React.forwardRef<HTMLDivElement, DragProps>((props, forwardedRef) =
     store?.setState('y', winY + offsetY);
   }
 
-  function handlerMouseup(e: Event) {
-    e.preventDefault();
+  function handlerMouseup() {
+    // e.preventDefault();
     removeWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
     removeWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
   }
@@ -297,16 +301,34 @@ const Drag = React.forwardRef<HTMLDivElement, DragProps>((props, forwardedRef) =
     addWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
   }
 
-  return <Primitive.div ref={forwardedRef} {...props} onMouseDown={onMouseDown} wb-drag=""></Primitive.div>;
+  return <Primitive.div ref={forwardedRef} {...props} onMouseDown={onMouseDown} wb-drag="" />;
 });
 
 Drag.displayName = 'WinBoxDrag';
 
-const Control = React.forwardRef<HTMLDivElement, ControlProps>((props, forwardedRef) => {});
+const Control = React.forwardRef<HTMLButtonElement, ControlProps>((props, forwardedRef) => {
+  const { type, ...etc } = props;
+
+  function onClick() {}
+
+  return <Primitive.button ref={forwardedRef} {...etc} onClick={onClick} wb-control={type} />;
+});
 
 Control.displayName = 'WinBoxControl';
 
-const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) => {});
+const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) => {
+  const url = useWb((state) => state.url);
+
+  const { children, ...etc } = props;
+
+  const comp = url ? <iframe src={url} wb-body-iframe="" /> : children;
+
+  return (
+    <Primitive.div ref={forwardedRef} {...etc} wb-body="">
+      {comp}
+    </Primitive.div>
+  );
+});
 
 Body.displayName = 'WinBoxBody';
 

@@ -1,17 +1,14 @@
-import { WinBox, WinBoxResizing } from './components/winbox';
+import { WinBox } from './components/winbox';
+
+function Text() {
+  console.log('文字是否渲染');
+  return <div>文字</div>;
+}
 
 function App() {
   return (
-    <WinBox width={400} height={400}>
-      <div className="backdrop-blur-0">文字</div>
-      <WinBoxResizing type="n" />
-      <WinBoxResizing type="s" />
-      <WinBoxResizing type="w" />
-      <WinBoxResizing type="e" />
-      <WinBoxResizing type="nw" />
-      <WinBoxResizing type="ne" />
-      <WinBoxResizing type="sw" />
-      <WinBoxResizing type="se" />
+    <WinBox url="https://zh-hans.react.dev/versions" width={400} height={400}>
+      <Text />
     </WinBox>
   );
 }
