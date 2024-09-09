@@ -19,16 +19,22 @@ type WinBoxProps = Children &
     center?: boolean;
     /** 窗口宽度 */
     width?: number;
+    // width?: number | string;
     /** 窗口高度 */
     height?: number;
+    // height?: number | string;
     /** 窗口最小高度 */
     minHeight?: number;
+    // minHeight?: number | string;
     /** 窗口最大宽度 */
     minWidth?: number;
+    // minWidth?: number | string;
     /** 窗口最大高度 */
     maxHeight?: number;
+    // maxHeight?: number | string;
     /** 窗口最大宽度 */
     maxWidth?: number;
+    // maxWidth?: number | string;
     /** 自动调整窗口大小 */
     autoSize?: boolean;
     /** 是否允许窗口移动到视窗外 */
@@ -51,13 +57,9 @@ type ResizingProps = Children &
     type: 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
   };
 
-type HeaderProps = Children & DivProps & {};
+type DragProps = Children & DivProps & {};
 
-type TitleProps = Children & DivProps & {};
-
-type ControlProps = Children & DivProps & {};
-
-type ControlButtonProps = Children &
+type ControlProps = Children &
   DivProps & {
     type?: 'fullscreen' | 'close';
   };
@@ -103,22 +105,40 @@ const useStore = () => React.useContext(StoreContext);
 const eventOptionsPassive = { capture: true, passive: true };
 
 const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
+  const { id, width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
   const state = useLazyRef<State>(() => ({
     /** 窗口x坐标 */
     x: 0,
     /** 窗口y坐标 */
     y: 0,
     /** 窗口宽度 */
-    width: props.width ?? 0,
+    width: width ?? 0,
     /** 窗口高度 */
-    height: props.height ?? 0,
+    height: height ?? 0,
     /** 是否隐藏窗口 */
     hide: true,
   }));
+  const winResize = useLazyRef(() => ({ height: 0, width: 0 }));
   const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
-  const { id, width: _, height: __, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
 
   const winBoxId = id ?? useId();
+
+  React.useEffect(() => {
+    let animationFrame: number;
+    const handleResize = () => {
+      animationFrame = requestAnimationFrame(() => {
+        winResize.current.width = document.documentElement.clientWidth;
+        winResize.current.height = document.documentElement.clientHeight;
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const store: Store = React.useMemo(
     () => ({
@@ -200,7 +220,7 @@ const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forward
   const store = useStore();
 
   function handlerMousemove(e: MouseEvent) {
-    e.preventDefault();
+    // e.preventDefault();
     const pageX = e.pageX;
     const pageY = e.pageY;
     const offsetX = pageX - x;
@@ -221,8 +241,8 @@ const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forward
     }
   }
 
-  function handlerMouseup(e: Event) {
-    e.preventDefault();
+  function handlerMouseup() {
+    // e.preventDefault();
     removeWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
     removeWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
   }
@@ -248,23 +268,43 @@ const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forward
 
 Resizing.displayName = 'WinBoxResizing';
 
-const Header = React.forwardRef<HTMLDivElement, HeaderProps>((props, forwardedRef) => {
-  return <Primitive.div></Primitive.div>;
+const Drag = React.forwardRef<HTMLDivElement, DragProps>((props, forwardedRef) => {
+  let x: number, y: number;
+  const winX = useWb((state) => state.x);
+  const winY = useWb((state) => state.y);
+  const store = useStore();
+
+  function handlerMousemove(e: MouseEvent) {
+    e.preventDefault();
+    const offsetX = e.pageX - x;
+    const offsetY = e.pageY - y;
+
+    store?.setState('x', winX + offsetX);
+    store?.setState('y', winY + offsetY);
+  }
+
+  function handlerMouseup(e: Event) {
+    e.preventDefault();
+    removeWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
+    removeWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
+  }
+
+  function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault();
+    x = e.pageX;
+    y = e.pageY;
+    addWindowListener('mousemove', handlerMousemove, eventOptionsPassive);
+    addWindowListener('mouseup', handlerMouseup, eventOptionsPassive);
+  }
+
+  return <Primitive.div ref={forwardedRef} {...props} onMouseDown={onMouseDown} wb-drag=""></Primitive.div>;
 });
 
-Header.displayName = 'WinBoxHeader';
-
-const Title = React.forwardRef<HTMLDivElement, TitleProps>((props, forwardedRef) => {});
-
-Title.displayName = 'WinBoxTitle';
+Drag.displayName = 'WinBoxDrag';
 
 const Control = React.forwardRef<HTMLDivElement, ControlProps>((props, forwardedRef) => {});
 
 Control.displayName = 'WinBoxControl';
-
-const ControlButton = React.forwardRef<HTMLDivElement, ControlButtonProps>((props, forwardedRef) => {});
-
-ControlButton.displayName = 'WinBoxControlButton';
 
 const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) => {});
 
@@ -272,10 +312,8 @@ Body.displayName = 'WinBoxBody';
 
 const pkg = Object.assign(WinBox, {
   Resizing,
-  Header,
-  Title,
+  Drag,
   Control,
-  ControlButton,
   Body,
 });
 
@@ -283,10 +321,8 @@ export { pkg as WinBox };
 
 export { WinBox as WinBoxRoot };
 export { Resizing as WinBoxResizing };
-export { Header as WinBoxHeader };
-export { Title as WinBoxTitle };
+export { Drag as WinBoxDrag };
 export { Control as WinBoxControl };
-export { ControlButton as WinBoxControlButton };
 export { Body as WinBoxBody };
 
 /**
