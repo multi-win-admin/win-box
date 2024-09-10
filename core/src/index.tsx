@@ -2,6 +2,7 @@ import { Primitive } from '@radix-ui/react-primitive';
 import * as React from 'react';
 import { useId } from '@radix-ui/react-id';
 import { addWindowListener, parseToPxOfDefault, removeWindowListener } from './helper';
+import { useStackStore } from './stack';
 
 type Children = { children?: React.ReactNode };
 type DivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -55,7 +56,7 @@ type WinBoxProps = Children &
 
 type WinBoxContent = Children & DivProps & {};
 
-type ResizingProps = Children &
+type ResizProps = Children &
   DivProps & {
     /** 可调整的方位 */
     type: 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
@@ -81,16 +82,18 @@ type Context = {
 /**
  * 存储状态
  */
-type State = {
+export type State = {
+  index: number;
   url: string | null;
   x: number;
   y: number;
   width: number;
   height: number;
   hide: boolean;
+  focused: boolean;
 };
 
-type Store = {
+export type Store = {
   subscribe: (callback: () => void) => () => void;
   snapshot: () => State;
   setState: <K extends keyof State>(key: K, value: State[K], opts?: any) => void;
@@ -108,16 +111,19 @@ const eventOptionsPassive = { capture: true, passive: true };
 const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRef) => {
   const { id, url, width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
   const state = useLazyRef<State>(() => ({
+    index: 0,
     url: url ?? null,
     x: 0,
     y: 0,
     width: width ?? 0,
     height: height ?? 0,
     hide: true,
+    focused: false,
   }));
   const sizeLimits = useLazyRef(() => ({ minH: 0, minW: 0, maxH: 0, maxW: 0, rootW: 0, rootH: 0 }));
   const oldSize = useLazyRef(() => ({ height: 0, width: 0, x: 0, y: 0 }));
   const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
+  const stackStore = useStackStore();
 
   const winBoxId = id ?? useId();
 
@@ -153,6 +159,11 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
     }
   }, [width, height]);
 
+  useLayoutEffect(() => {
+    stackStore.setStoreMap(winBoxId, store);
+    stackStore.focus(winBoxId);
+  }, []);
+
   const store: Store = React.useMemo(
     () => ({
       subscribe: (cb) => {
@@ -167,19 +178,13 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
         if (key === 'width') {
           const w = value as number;
           const stateW = state.current.width;
-
-          if (w >= sizeLimits.current.maxW && w > stateW) return;
-          if (w < sizeLimits.current.minW) return;
-
-          state.current.width = w;
+          // 限制最大最小宽度
+          if ((w >= sizeLimits.current.maxW && w > stateW) || w < sizeLimits.current.minW) return;
         } else if (key === 'height') {
           const h = value as number;
           const stateH = state.current.height;
-
-          if (h >= sizeLimits.current.maxH && h > stateH) return;
-          if (h < sizeLimits.current.minH) return;
-
-          state.current.height = h;
+          // 限制最大最小高度
+          if ((h >= sizeLimits.current.maxH && h > stateH) || h < sizeLimits.current.minH) return;
         }
         state.current[key] = value;
 
@@ -216,14 +221,23 @@ const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContent>((props, fo
   const height = useWb((state) => state.height);
   const x = useWb((state) => state.x);
   const y = useWb((state) => state.y);
+  const index = useWb((state) => state.index);
+  const stackStore = useStackStore();
 
   const { children: _, ...etc } = props;
+
+  function onMouseDown() {
+    console.log('onMouseDown');
+    stackStore.focus(context!.winBoxId);
+  }
+
   return (
     <Primitive.div
       ref={forwardedRef}
       {...etc}
-      style={{ width, height, top: y, left: x }}
+      style={{ width, height, top: y, left: x, zIndex: index }}
       wb-root=""
+      onMouseDown={onMouseDown}
       id={context?.winBoxId}
     >
       {props.children}
@@ -233,7 +247,7 @@ const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContent>((props, fo
 
 WinBoxContent.displayName = 'WinBoxContent';
 
-const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forwardedRef) => {
+const Resiz = React.forwardRef<HTMLDivElement, ResizProps>((props, forwardedRef) => {
   const { type, ...etc } = props;
   // const context = useWinBox();
   let x: number, y: number;
@@ -290,7 +304,7 @@ const Resizing = React.forwardRef<HTMLDivElement, ResizingProps>((props, forward
   );
 });
 
-Resizing.displayName = 'WinBoxResizing';
+Resiz.displayName = 'WinBoxResizing';
 
 const Drag = React.forwardRef<HTMLDivElement, DragProps>((props, forwardedRef) => {
   let x: number, y: number;
@@ -353,7 +367,7 @@ const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) =
 Body.displayName = 'WinBoxBody';
 
 const pkg = Object.assign(WinBox, {
-  Resizing,
+  Resiz,
   Drag,
   Control,
   Body,
@@ -364,7 +378,7 @@ export { pkg as WinBox };
 export { useWb as useWinBoxState };
 
 export { WinBox as WinBoxRoot };
-export { Resizing as WinBoxResizing };
+export { Resiz as WinBoxResiz };
 export { Drag as WinBoxDrag };
 export { Control as WinBoxControl };
 export { Body as WinBoxBody };
