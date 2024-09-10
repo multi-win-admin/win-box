@@ -32,3 +32,7 @@ export function parseToPx(num: string | number, viewport: number): number {
 
   return num;
 }
+
+export function parseToPxOfDefault(num: string | number | undefined, viewport: number, defaultNum = 0) {
+  return num ? parseToPx(num, viewport) : defaultNum;
+}

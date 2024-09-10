@@ -1,7 +1,7 @@
 import { Primitive } from '@radix-ui/react-primitive';
 import * as React from 'react';
 import { useId } from '@radix-ui/react-id';
-import { addWindowListener, removeWindowListener } from './helper';
+import { addWindowListener, parseToPxOfDefault, removeWindowListener } from './helper';
 
 type Children = { children?: React.ReactNode };
 type DivProps = React.ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -20,28 +20,29 @@ type WinBoxProps = Children &
     y?: number;
     /** 窗口是否居中 */
     center?: boolean;
-    /** 窗口宽度 */
+    /** 窗口宽高 支持 px 或 % */
     width?: number;
-    // width?: number | string;
-    /** 窗口高度 */
     height?: number;
-    // height?: number | string;
-    /** 窗口最小高度 */
-    minHeight?: number;
-    // minHeight?: number | string;
-    /** 窗口最大宽度 */
-    minWidth?: number;
-    // minWidth?: number | string;
-    /** 窗口最大高度 */
-    maxHeight?: number;
-    // maxHeight?: number | string;
-    /** 窗口最大宽度 */
-    maxWidth?: number;
-    // maxWidth?: number | string;
+    /** 窗口最小最小宽高 支持 px 或 % */
+    minHeight?: number | string;
+    minWidth?: number | string;
+    maxHeight?: number | string;
+    maxWidth?: number | string;
     /** 自动调整窗口大小 */
     autoSize?: boolean;
     /** 是否允许窗口移动到视窗外 */
     overflow?: boolean;
+    /** 创建时窗口最大化 */
+    max?: boolean;
+    /** 创建时窗口隐藏 */
+    hidden?: boolean;
+    /** 窗口屏幕限制区域 */
+    top?: number | string;
+    right?: number | string;
+    bottom?: number | string;
+    left?: number | string;
+    /** 创建窗口时回调 */
+    onCreate?: () => void;
     /** 窗口移动时回调 */
     onMove?: (x: number, y: number) => void;
     /** 窗口调整大小时回调 */
@@ -75,10 +76,6 @@ type BodyProps = Children & DivProps & {};
 type Context = {
   /** winBox 唯一 ID */
   winBoxId: string;
-  minHeight: number;
-  minWidth: number;
-  maxHeight: number;
-  maxWidth?: number;
 };
 
 /**
@@ -112,38 +109,49 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
   const { id, url, width, height, minHeight, minWidth, maxHeight, maxWidth, ...etc } = props;
   const state = useLazyRef<State>(() => ({
     url: url ?? null,
-    /** 窗口x坐标 */
     x: 0,
-    /** 窗口y坐标 */
     y: 0,
-    /** 窗口宽度 */
     width: width ?? 0,
-    /** 窗口高度 */
     height: height ?? 0,
-    /** 是否隐藏窗口 */
     hide: true,
   }));
-  const winResize = useLazyRef(() => ({ height: 0, width: 0 }));
+  const sizeLimits = useLazyRef(() => ({ minH: 0, minW: 0, maxH: 0, maxW: 0, rootW: 0, rootH: 0 }));
+  const oldSize = useLazyRef(() => ({ height: 0, width: 0, x: 0, y: 0 }));
   const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
 
   const winBoxId = id ?? useId();
 
-  React.useEffect(() => {
+  useLayoutEffect(() => {
     let animationFrame: number;
     const handleResize = () => {
       animationFrame = requestAnimationFrame(() => {
-        winResize.current.width = document.documentElement.clientWidth;
-        winResize.current.height = document.documentElement.clientHeight;
+        const rootW = document.documentElement.clientWidth;
+        const rootH = document.documentElement.clientHeight;
+        const maxH = parseToPxOfDefault(maxHeight, rootH, rootH);
+        const maxW = parseToPxOfDefault(maxWidth, rootW, rootW);
+        const minH = parseToPxOfDefault(minHeight, maxH, 150);
+        const minW = parseToPxOfDefault(minWidth, maxW, 150);
+        sizeLimits.current = { maxH, maxW, minH, minW, rootW, rootH };
       });
     };
 
     window.addEventListener('resize', handleResize);
+
+    handleResize();
 
     return () => {
       cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (width !== undefined || height !== undefined) {
+      state.current.width = width ?? 0;
+      state.current.height = height ?? 0;
+      store.emit();
+    }
+  }, [width, height]);
 
   const store: Store = React.useMemo(
     () => ({
@@ -156,6 +164,23 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
       },
       setState: (key, value) => {
         if (Object.is(state.current[key], value)) return;
+        if (key === 'width') {
+          const w = value as number;
+          const stateW = state.current.width;
+
+          if (w >= sizeLimits.current.maxW && w > stateW) return;
+          if (w < sizeLimits.current.minW) return;
+
+          state.current.width = w;
+        } else if (key === 'height') {
+          const h = value as number;
+          const stateH = state.current.height;
+
+          if (h >= sizeLimits.current.maxH && h > stateH) return;
+          if (h < sizeLimits.current.minH) return;
+
+          state.current.height = h;
+        }
         state.current[key] = value;
 
         store.emit();
@@ -168,16 +193,11 @@ const WinBox = React.forwardRef<HTMLDivElement, WinBoxProps>((props, forwardedRe
   );
 
   // 上下文环境
-  const context: Context = React.useMemo(
-    () => ({
+  const context: Context = React.useMemo(() => {
+    return {
       winBoxId,
-      minHeight: minHeight ?? 0,
-      minWidth: minWidth ?? 0,
-      maxHeight: maxHeight ?? 0,
-      maxWidth: maxWidth ?? 0,
-    }),
-    [],
-  );
+    };
+  }, []);
 
   return (
     <StoreContext.Provider value={store}>
@@ -341,11 +361,15 @@ const pkg = Object.assign(WinBox, {
 
 export { pkg as WinBox };
 
+export { useWb as useWinBoxState };
+
 export { WinBox as WinBoxRoot };
 export { Resizing as WinBoxResizing };
 export { Drag as WinBoxDrag };
 export { Control as WinBoxControl };
 export { Body as WinBoxBody };
+
+const useLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
 /**
  * 延迟初始化 Ref

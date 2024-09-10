@@ -13,7 +13,7 @@ const WinBox = React.forwardRef<
       className={cn('fixed border rounded-lg overflow-hidden flex flex-col shadow-2xl', className)}
       {...etc}
     >
-      <div wb-header className="h-8">
+      <div wb-header="" className="h-8">
         <WinBoxPrimitive.Drag className="h-8 cursor-move" />
       </div>
       <WinBoxPrimitive.Body className="flex-auto [&_[wb-body-iframe]]:h-full [&_[wb-body-iframe]]:w-full">

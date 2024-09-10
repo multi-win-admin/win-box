@@ -1,13 +1,20 @@
 import { WinBox } from './components/winbox';
+import { useWinBoxState } from 'win-box';
 
 function Text() {
-  console.log('文字是否渲染');
-  return <div>文字</div>;
+  const height = useWinBoxState((state) => state.height);
+  const width = useWinBoxState((state) => state.width);
+  return (
+    <div>
+      <div>height: {height}</div>
+      <div>width: {width}</div>
+    </div>
+  );
 }
 
 function App() {
   return (
-    <WinBox url="https://zh-hans.react.dev/versions" width={400} height={400}>
+    <WinBox width={400} height={400} maxWidth="50%" maxHeight="50%">
       <Text />
     </WinBox>
   );
