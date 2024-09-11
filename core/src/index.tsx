@@ -56,7 +56,7 @@ type WinBoxProps = Children &
 
 type WinBoxContent = Children & DivProps & {};
 
-type ResizProps = Children &
+type ResizeProps = Children &
   DivProps & {
     /** 可调整的方位 */
     type: 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
@@ -234,9 +234,11 @@ const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContent>((props, fo
   return (
     <Primitive.div
       ref={forwardedRef}
+      tabIndex={-1}
       {...etc}
       style={{ width, height, top: y, left: x, zIndex: index }}
       wb-root=""
+      role="dialog"
       onMouseDown={onMouseDown}
       id={context?.winBoxId}
     >
@@ -247,7 +249,7 @@ const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContent>((props, fo
 
 WinBoxContent.displayName = 'WinBoxContent';
 
-const Resiz = React.forwardRef<HTMLDivElement, ResizProps>((props, forwardedRef) => {
+const Resize = React.forwardRef<HTMLDivElement, ResizeProps>((props, forwardedRef) => {
   const { type, ...etc } = props;
   // const context = useWinBox();
   let x: number, y: number;
@@ -304,7 +306,7 @@ const Resiz = React.forwardRef<HTMLDivElement, ResizProps>((props, forwardedRef)
   );
 });
 
-Resiz.displayName = 'WinBoxResizing';
+Resize.displayName = 'WinBoxResizing';
 
 const Drag = React.forwardRef<HTMLDivElement, DragProps>((props, forwardedRef) => {
   let x: number, y: number;
@@ -345,7 +347,7 @@ const Control = React.forwardRef<HTMLButtonElement, ControlProps>((props, forwar
 
   function onClick() {}
 
-  return <Primitive.button ref={forwardedRef} {...etc} onClick={onClick} wb-control={type} />;
+  return <Primitive.button ref={forwardedRef} {...etc} onClick={onClick} wb-control="" data-control={type} />;
 });
 
 Control.displayName = 'WinBoxControl';
@@ -367,7 +369,7 @@ const Body = React.forwardRef<HTMLDivElement, BodyProps>((props, forwardedRef) =
 Body.displayName = 'WinBoxBody';
 
 const pkg = Object.assign(WinBox, {
-  Resiz,
+  Resize,
   Drag,
   Control,
   Body,
@@ -378,7 +380,7 @@ export { pkg as WinBox };
 export { useWb as useWinBoxState };
 
 export { WinBox as WinBoxRoot };
-export { Resiz as WinBoxResiz };
+export { Resize as WinBoxResize };
 export { Drag as WinBoxDrag };
 export { Control as WinBoxControl };
 export { Body as WinBoxBody };
