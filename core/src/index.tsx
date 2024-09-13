@@ -1,7 +1,7 @@
 import { Primitive } from '@radix-ui/react-primitive';
 import * as React from 'react';
 import { useId } from '@radix-ui/react-id';
-import { addWindowListener, parseToPxOfDefault, removeWindowListener } from './helper';
+import { addWindowListener, parseToPxOfDefault, removeWindowListener } from './lib/helper';
 import { useStackStore } from './stack';
 
 type Children = { children?: React.ReactNode };

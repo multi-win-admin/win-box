@@ -4,7 +4,7 @@ import { useId } from '@radix-ui/react-id';
 import { Portal as PortalPrimitive } from '@radix-ui/react-portal';
 import { createContext, createContextScope, Scope } from '@radix-ui/react-context';
 import { useStackStore } from './stack';
-import { parseToPxOfDefault } from './helper';
+import { parseToPxOfDefault } from './lib/helper';
 import { Primitive } from '@radix-ui/react-primitive';
 
 /* -------------------------------------------------------------------------------------------------
