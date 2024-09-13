@@ -2,10 +2,12 @@ import * as React from 'react';
 
 import { useId } from '@radix-ui/react-id';
 import { Portal as PortalPrimitive } from '@radix-ui/react-portal';
-import { createContext, createContextScope, Scope } from '@radix-ui/react-context';
 import { useStackStore } from './stack';
 import { parseToPxOfDefault } from './lib/helper';
 import { Primitive } from '@radix-ui/react-primitive';
+import { createContext } from './lib/context';
+
+type Fn<T> = <K extends keyof T>(key: K, value: T[K]) => void;
 
 /* -------------------------------------------------------------------------------------------------
  * WinBox
@@ -13,25 +15,11 @@ import { Primitive } from '@radix-ui/react-primitive';
 
 const WIN_BOX_NAME = 'WinBox';
 
-type ScopedProps<P> = P & { __scopeWinBox?: Scope };
-const [createWinBoxContext, createWinBoxScope] = createContextScope(WIN_BOX_NAME);
-
-type Fn<T> = <K extends keyof T>(key: K, value: T[K]) => void;
-
-type Store = {
-  subscribe: (callback: () => void) => () => void;
-  snapshot: () => State;
-  setState: Fn<State>;
-  emit: () => void;
-};
-
 type WinBoxContextValue = {
-  limits: Fn<Limits>;
   contentId: string;
-  store: Store;
 };
 
-const [WinBoxProvider, useWinBoxContext] = createWinBoxContext<WinBoxContextValue>(WIN_BOX_NAME);
+const [WinBoxProvider, useWinBoxContext] = createContext<WinBoxContextValue>(WIN_BOX_NAME);
 
 type State = {
   index: number;
@@ -44,160 +32,60 @@ type State = {
   focused: boolean;
 };
 
-type Limits = {
-  rootWidth: number;
-  rootHeight: number;
-  minHeight: number;
-  minWidth: number;
-  maxHeight: number;
-  maxWidth: number;
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
+type Store = {
+  subscribe: (callback: () => void) => () => void;
+  snapshot: () => State;
+  setState: Fn<State>;
+  emit: () => void;
 };
 
+const [WinBoxStoreProvider, useWinBoxStoreContext] = createContext<Store>(WIN_BOX_NAME);
+
 interface WinBoxProps {
-  /** 窗口层级 */
-  index?: number;
-  /** 打开的url */
-  url?: string;
-  /** 窗口位置 */
-  x?: number;
-  y?: number;
-  /** 窗口是否居中 */
-  center?: boolean;
-  /** 窗口宽高 支持 px 或 % */
-  width?: number;
-  height?: number;
-  /** 自动调整窗口大小 */
-  autoSize?: boolean;
-  /** 是否允许窗口移动到视窗外 */
-  overflow?: boolean;
-  /** 创建时窗口最大化 */
-  max?: boolean;
-  /** 创建时窗口隐藏 */
-  hidden?: boolean;
   children?: React.ReactNode;
-  /** 创建窗口时回调 */
-  onCreate?: () => void;
-  /** 窗口移动时回调 */
-  onMove?: (x: number, y: number) => void;
-  /** 窗口调整大小时回调 */
-  onResize?: (width: number, height: number) => void;
-  /** 窗口进入全屏时回调 */
-  onFullscreen?: () => void;
-  /** 窗口进入最小化时回调 */
-  onMinimize?: () => void;
 }
 
-const WinBox: React.FC<WinBoxProps> = (props: ScopedProps<WinBoxProps>) => {
-  const { __scopeWinBox, url, width, height, minHeight, minWidth, maxHeight, maxWidth, children } = props;
-  const state = useLazyRef<State>(() => ({
-    index: 0,
-    url: url ?? null,
-    x: 0,
-    y: 0,
-    width: width ?? 0,
-    height: height ?? 0,
-    hide: true,
-    focused: false,
-  }));
-  const limits = useLazyRef<Limits>(() => ({
-    minHeight: 0,
-    minWidth: 0,
-    maxHeight: 0,
-    maxWidth: 0,
-    rootHeight: 0,
-    rootWidth: 0,
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  }));
-  const listeners = useLazyRef<Set<() => void>>(() => new Set()); // [...rerenders]
-  const stackStore = useStackStore();
-
-  const contentId = useId();
-
-  useLayoutEffect(() => {
-    let animationFrame: number;
-    const handleResize = () => {
-      animationFrame = requestAnimationFrame(() => {
-        const rootW = document.documentElement.clientWidth;
-        const rootH = document.documentElement.clientHeight;
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    handleResize();
-
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (width !== undefined || height !== undefined) {
-      state.current.width = width ?? 0;
-      state.current.height = height ?? 0;
-      store.emit();
-    }
-  }, [width, height]);
-
-  useLayoutEffect(() => {
-    stackStore.setStoreMap(contentId, store);
-    stackStore.focus(contentId);
-  }, []);
-
-  const store: Store = React.useMemo(
-    () => ({
-      subscribe: (cb) => {
-        listeners.current.add(cb);
-        return () => listeners.current.delete(cb);
-      },
-      snapshot: () => {
-        return state.current;
-      },
-      setState: (key, value) => {
-        if (Object.is(state.current[key], value)) return;
-        if (key === 'width') {
-          const w = value as number;
-          const stateW = state.current.width;
-          // 限制最大最小宽度
-          if ((w >= limits.current.maxWidth && w > stateW) || w < limits.current.minWidth) return;
-        } else if (key === 'height') {
-          const h = value as number;
-          const stateH = state.current.height;
-          // 限制最大最小高度
-          if ((h >= limits.current.maxHeight && h > stateH) || h < limits.current.minHeight) return;
-        }
-        state.current[key] = value;
-
-        store.emit();
-      },
-      emit: () => {
-        listeners.current.forEach((l) => l());
-      },
-    }),
-    [],
-  );
-
-  const setLimits: Fn<Limits> = React.useCallback((key, value) => {
-    if (Object.is(limits.current[key], value)) return;
-    limits.current[key] = value;
-  }, []);
-
+const WinBox: React.FC<WinBoxProps> = (props: WinBoxProps) => {
+  const { children } = props;
+  // TODO
   return (
-    <WinBoxProvider scope={__scopeWinBox} limits={setLimits} contentId={useId()} store={store}>
-      {children}
+    <WinBoxProvider value={}>
+      <WinBoxStoreProvider value={}>{children}</WinBoxStoreProvider>
     </WinBoxProvider>
   );
 };
 
 WinBox.displayName = WIN_BOX_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxTrigger
+ * -----------------------------------------------------------------------------------------------*/
+
+const TRIGGER_NAME = 'WinBoxTrigger';
+
+type WinBoxTriggerElement = React.ElementRef<typeof Primitive.button>;
+interface WinBoxTriggerProps {
+  // DOTO
+}
+
+const WinBoxTrigger = React.forwardRef<WinBoxTriggerElement, WinBoxTriggerProps>((props, forwardedRef) => {
+  const context = useWinBoxContext(TRIGGER_NAME);
+
+  return (
+    <Primitive.button
+      type="button"
+      aria-haspopup="dialog"
+      aria-expanded={}
+      aria-controls={context.contentId}
+      data-state={}
+      {...props}
+      ref={forwardedRef}
+      onClick={}
+    />
+  );
+});
+
+WinBoxTrigger.displayName = TRIGGER_NAME;
 
 /* -------------------------------------------------------------------------------------------------
  * WinBoxPortal
@@ -217,6 +105,7 @@ const WinBoxPortal: React.FC<WinBoxPortalProps> = (props) => {
   return (
     <>
       {React.Children.map(children, (child) => (
+        // DOTO 隐藏dom
         <PortalPrimitive asChild container={container}>
           {child}
         </PortalPrimitive>
@@ -228,54 +117,276 @@ const WinBoxPortal: React.FC<WinBoxPortalProps> = (props) => {
 WinBoxPortal.displayName = PORTAL_NAME;
 
 /* -------------------------------------------------------------------------------------------------
+ * WinBoxOverlay
+ * -----------------------------------------------------------------------------------------------*/
+
+const OVERLAY_NAME = 'WinBoxOverlay';
+
+type WinBoxOverlayElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxOverlayProps {}
+
+const WinBoxOverlay = React.forwardRef<WinBoxOverlayElement, WinBoxOverlayProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxOverlay.displayName = OVERLAY_NAME;
+
+/* -------------------------------------------------------------------------------------------------
  * WinBoxContent
  * -----------------------------------------------------------------------------------------------*/
 
 const CONTENT_NAME = 'WinBoxContent';
 
-type SizeRange = {
-  minHeight?: number | string;
-  minWidth?: number | string;
-  maxHeight?: number | string;
-  maxWidth?: number | string;
-};
-
-type Margin = {
-  top?: number | string;
-  right?: number | string;
-  bottom?: number | string;
-  left?: number | string;
-};
-
-interface WinBoxContentProps extends React.ComponentPropsWithoutRef<typeof Primitive.div> {
-  /** 窗口最小最小宽高 支持 px 或 % */
-  sizeRange: SizeRange;
-  /** 窗口屏幕限制区域 */
-  margin: Margin;
+type WinBoxContentElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxContentProps {
   children?: React.ReactNode;
 }
 
-const WinBoxContent = React.forwardRef<HTMLDivElement, WinBoxContentProps>((props, forwardedRef) => {
+const WinBoxContent = React.forwardRef<WinBoxContentElement, WinBoxContentProps>((props, forwardedRef) => {
   return;
 });
 
 WinBoxContent.displayName = CONTENT_NAME;
 
 /* -------------------------------------------------------------------------------------------------
- * WinBoxResize
+ * WinBoxHeader
  * -----------------------------------------------------------------------------------------------*/
+
+const HEADER_NAME = 'WinBoxHeader';
+
+type WinBoxHeaderElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxHeaderProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxHeader = React.forwardRef<WinBoxHeaderElement, WinBoxHeaderProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxHeader.displayName = HEADER_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxDrag
+ * -----------------------------------------------------------------------------------------------*/
+
+const DRAG_NAME = 'WinBoxDrag';
+
+type WinBoxDragElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxDragProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxDrag = React.forwardRef<WinBoxDragElement, WinBoxDragProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxDrag.displayName = DRAG_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxIcon
+ * -----------------------------------------------------------------------------------------------*/
+
+const ICON_NAME = 'WinBoxIcon';
+
+type WinBoxIconElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxIconProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxIcon = React.forwardRef<WinBoxIconElement, WinBoxIconProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxIcon.displayName = ICON_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxTitle
+ * -----------------------------------------------------------------------------------------------*/
+
+const TITLE_NAME = 'WinBoxTitle';
+
+type WinBoxTitleElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxTitleProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxTitle = React.forwardRef<WinBoxTitleElement, WinBoxTitleProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxTitle.displayName = TITLE_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxControls
+ * -----------------------------------------------------------------------------------------------*/
+
+const CONTROLS_NAME = 'WinBoxControls';
+
+type WinBoxControlsElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxControlsProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxControls = React.forwardRef<WinBoxControlsElement, WinBoxControlsProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxControls.displayName = CONTROLS_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxMinimize
+ * -----------------------------------------------------------------------------------------------*/
+
+const MINIMIZE_NAME = 'WinBoxMinimize';
+
+type WinBoxMinimizeElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxMinimizeProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxMinimize = React.forwardRef<WinBoxMinimizeElement, WinBoxMinimizeProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxMinimize.displayName = MINIMIZE_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxMaximize
+ * -----------------------------------------------------------------------------------------------*/
+
+const MAXIMIZE_NAME = 'WinBoxMaximize';
+
+type WinBoxMaximizeElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxMaximizeProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxMaximize = React.forwardRef<WinBoxMaximizeElement, WinBoxMaximizeProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxMaximize.displayName = MAXIMIZE_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxFullScreen
+ * -----------------------------------------------------------------------------------------------*/
+
+const FULLSCREEN_NAME = 'WinBoxFullScreen';
+
+type WinBoxFullScreenElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxFullScreenProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxFullScreen = React.forwardRef<WinBoxFullScreenElement, WinBoxFullScreenProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxFullScreen.displayName = FULLSCREEN_NAME;
 
 /* -------------------------------------------------------------------------------------------------
  * WinBoxClose
  * -----------------------------------------------------------------------------------------------*/
 
-/* -------------------------------------------------------------------------------------------------
- * WinBoxMin
- * -----------------------------------------------------------------------------------------------*/
+const CLOSE_NAME = 'WinBoxClose';
+
+type WinBoxCloseElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxCloseProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxClose = React.forwardRef<WinBoxCloseElement, WinBoxCloseProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxClose.displayName = CLOSE_NAME;
 
 /* -------------------------------------------------------------------------------------------------
- * WinBoxMax
+ * WinBoxBody
  * -----------------------------------------------------------------------------------------------*/
+
+const BODY_NAME = 'WinBoxBody';
+
+type WinBoxBodyElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxBodyProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxBody = React.forwardRef<WinBoxBodyElement, WinBoxBodyProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxBody.displayName = BODY_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * WinBoxResize
+ * -----------------------------------------------------------------------------------------------*/
+
+const RESIZE_NAME = 'WinBoxResize';
+
+type WinBoxResizeElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxResizeProps {
+  children?: React.ReactNode;
+}
+
+const WinBoxResize = React.forwardRef<WinBoxResizeElement, WinBoxResizeProps>((props, forwardedRef) => {
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxResize.displayName = RESIZE_NAME;
+
+const Root = WinBox;
+const Trigger = WinBoxTrigger;
+const Portal = WinBoxPortal;
+const Overlay = WinBoxOverlay;
+const Content = WinBoxContent;
+const Header = WinBoxHeader;
+const Drag = WinBoxDrag;
+const Icon = WinBoxIcon;
+const Title = WinBoxTitle;
+const Controls = WinBoxControls;
+const Minimize = WinBoxMinimize;
+const Maximize = WinBoxMaximize;
+const FullScreen = WinBoxFullScreen;
+const Close = WinBoxClose;
+const Body = WinBoxBody;
+const Resize = WinBoxResize;
+
+export {
+  Root,
+  Trigger,
+  Portal,
+  Overlay,
+  Content,
+  Header,
+  Drag,
+  Icon,
+  Title,
+  Controls,
+  Minimize,
+  Maximize,
+  FullScreen,
+  Close,
+  Body,
+  Resize,
+  //
+  WinBox,
+  WinBoxTrigger,
+  WinBoxPortal,
+  WinBoxOverlay,
+  WinBoxContent,
+  WinBoxHeader,
+  WinBoxDrag,
+  WinBoxIcon,
+  WinBoxTitle,
+  WinBoxControls,
+  WinBoxMinimize,
+  WinBoxMaximize,
+  WinBoxFullScreen,
+  WinBoxClose,
+  WinBoxBody,
+  WinBoxResize,
+};
 
 const useLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
