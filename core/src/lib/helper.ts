@@ -1,4 +1,6 @@
-export function addWindowListener<K extends keyof WindowEventMap>(
+import * as React from 'react';
+
+function addWindowListener<K extends keyof WindowEventMap>(
   type: K,
   listener: (this: Window, ev: WindowEventMap[K]) => any,
   options?: boolean | AddEventListenerOptions,
@@ -6,7 +8,7 @@ export function addWindowListener<K extends keyof WindowEventMap>(
   window.addEventListener(type, listener, options);
 }
 
-export function removeWindowListener<K extends keyof WindowEventMap>(
+function removeWindowListener<K extends keyof WindowEventMap>(
   type: K,
   listener: (this: Window, ev: WindowEventMap[K]) => any,
   options?: boolean | AddEventListenerOptions,
@@ -19,7 +21,7 @@ export function removeWindowListener<K extends keyof WindowEventMap>(
  * @param num
  * @returns
  */
-export function parseToPx(num: string | number, viewport: number): number {
+function parseToPx(num: string | number, viewport: number): number {
   if (typeof num === 'string') {
     const value = parseFloat(num);
     const unit = '' + value !== num && num.substring(('' + value).length);
@@ -33,6 +35,20 @@ export function parseToPx(num: string | number, viewport: number): number {
   return num;
 }
 
-export function parseToPxOfDefault(num: string | number | undefined, viewport: number, defaultNum = 0) {
+function parseToPxOfDefault(num: string | number | undefined, viewport: number, defaultNum = 0) {
   return num ? parseToPx(num, viewport) : defaultNum;
 }
+
+function mergeRefs<T = any>(refs: Array<React.MutableRefObject<T> | React.LegacyRef<T>>): React.RefCallback<T> {
+  return (value) => {
+    refs.forEach((ref) => {
+      if (typeof ref === 'function') {
+        ref(value);
+      } else if (ref !== null) {
+        (ref as React.MutableRefObject<T | null>).current = value;
+      }
+    });
+  };
+}
+
+export { addWindowListener, removeWindowListener, parseToPx, parseToPxOfDefault, mergeRefs }

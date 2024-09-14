@@ -9,8 +9,6 @@ WinBox Component 提供的无样式功能组件。
 ```typescript
 
 interface WinBoxProps {
-  /** 窗口打开的URL地址 */
-  url?: string;
   /** 窗口是否打开，默认值: true */
   open?: boolean;
   /** 是否隐藏窗口，默认值: false */
@@ -21,10 +19,6 @@ interface WinBoxProps {
   onHiddenChange?: (hidden: boolean) => void;
   /** 窗口从全屏、最小化、最大化状态返回到窗口状态时回调 */
   onRestore: () => void;
-  /** 窗口移动回调 */
-  onMove?: () => void;
-  /** 窗口大小改变回调 */
-  onResize?: () => void;
   /** 窗口创建完成回调 */
   onCreate?: () => void;
   /** 是否为模态框，默认值: false */
@@ -35,16 +29,31 @@ interface WinBoxProps {
 
 ### WinBoxTrigger
 
-### WinBoxOverlay
+```typescript
+
+interface WinBoxTriggerProps {
+  asChild: boolean;
+}
+
+```
 
 ### WinBoxPortal
 
 ```typescript
 
 interface WinBoxPortalProps {
-  forceMount: boolean;
   /** 指定要将内容挂载到指定的容器节点，默认值: document.body */
   container?: HTMLElement;
+}
+
+```
+
+### WinBoxOverlay
+
+```typescript
+
+interface WinBoxOverlayProps {
+  asChild: boolean;
 }
 
 ```
@@ -54,7 +63,21 @@ interface WinBoxPortalProps {
 ```typescript
 
 interface WinBoxContentProps {
+  /** 窗口移动回调 */
+  onMove?: () => void;
+  /** 窗口大小改变回调 */
+  onResize?: () => void;
+  asChild: boolean;
+}
 
+```
+
+### WinBoxHeader
+
+```typescript
+
+interface WinBoxHeaderProps {
+  asChild: boolean;
 }
 
 ```
@@ -64,6 +87,40 @@ interface WinBoxContentProps {
 ```typescript
 
 interface WinBoxDragProps {
+  asChild: boolean;
+  children?: React.ReactNode;
+}
+
+```
+
+### WinBoxIcon
+
+```typescript
+
+interface WinBoxIconProps {
+  asChild: boolean;
+  children?: React.ReactNode;
+}
+
+```
+
+### WinBoxTitle
+
+```typescript
+
+interface WinBoxTitleProps {
+  asChild: boolean;
+  children?: React.ReactNode;
+}
+
+```
+
+### WinBoxControls
+
+```typescript
+
+interface WinBoxControlsProps {
+  asChild: boolean;
   children?: React.ReactNode;
 }
 
@@ -74,7 +131,7 @@ interface WinBoxDragProps {
 ```typescript
 
 interface WinBoxCloseProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 ```
@@ -84,7 +141,7 @@ interface WinBoxCloseProps {
 ```typescript
 
 interface WinBoxFullScreenProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 ```
@@ -94,7 +151,7 @@ interface WinBoxFullScreenProps {
 ```typescript
 
 interface WinBoxMaximizeProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 ```
@@ -104,6 +161,19 @@ interface WinBoxMaximizeProps {
 ```typescript
 
 interface WinBoxMinimizeProps {
+  asChild: boolean;
+}
+
+```
+
+### WinBoxBody
+
+```typescript
+
+interface WinBoxBodyProps {
+  /** 窗口打开的URL地址 */
+  url?: string;
+  asChild: boolean;
   children?: React.ReactNode;
 }
 
@@ -114,7 +184,7 @@ interface WinBoxMinimizeProps {
 ```typescript
 
 interface WinBoxResizeProps {
-  children?: React.ReactNode;
+  asChild: boolean;
   /** 窗口边缘拖动类型 */
   type?: 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
 }

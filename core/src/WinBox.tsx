@@ -65,7 +65,7 @@ const TRIGGER_NAME = 'WinBoxTrigger';
 
 type WinBoxTriggerElement = React.ElementRef<typeof Primitive.button>;
 interface WinBoxTriggerProps {
-  // DOTO
+  asChild: boolean;
 }
 
 const WinBoxTrigger = React.forwardRef<WinBoxTriggerElement, WinBoxTriggerProps>((props, forwardedRef) => {
@@ -123,7 +123,9 @@ WinBoxPortal.displayName = PORTAL_NAME;
 const OVERLAY_NAME = 'WinBoxOverlay';
 
 type WinBoxOverlayElement = React.ElementRef<typeof Primitive.div>;
-interface WinBoxOverlayProps {}
+interface WinBoxOverlayProps {
+  asChild: boolean;
+}
 
 const WinBoxOverlay = React.forwardRef<WinBoxOverlayElement, WinBoxOverlayProps>((props, forwardedRef) => {
   return <Primitive.div {...props} ref={forwardedRef} />;
@@ -143,6 +145,8 @@ interface WinBoxContentProps {
 }
 
 const WinBoxContent = React.forwardRef<WinBoxContentElement, WinBoxContentProps>((props, forwardedRef) => {
+  const context = useWinBoxContext(TRIGGER_NAME);
+
   return;
 });
 
@@ -190,6 +194,7 @@ const ICON_NAME = 'WinBoxIcon';
 
 type WinBoxIconElement = React.ElementRef<typeof Primitive.div>;
 interface WinBoxIconProps {
+  asChild: boolean;
   children?: React.ReactNode;
 }
 
@@ -207,6 +212,7 @@ const TITLE_NAME = 'WinBoxTitle';
 
 type WinBoxTitleElement = React.ElementRef<typeof Primitive.div>;
 interface WinBoxTitleProps {
+  asChild: boolean;
   children?: React.ReactNode;
 }
 
@@ -224,6 +230,7 @@ const CONTROLS_NAME = 'WinBoxControls';
 
 type WinBoxControlsElement = React.ElementRef<typeof Primitive.div>;
 interface WinBoxControlsProps {
+  asChild: boolean;
   children?: React.ReactNode;
 }
 
@@ -239,13 +246,13 @@ WinBoxControls.displayName = CONTROLS_NAME;
 
 const MINIMIZE_NAME = 'WinBoxMinimize';
 
-type WinBoxMinimizeElement = React.ElementRef<typeof Primitive.div>;
+type WinBoxMinimizeElement = React.ElementRef<typeof Primitive.button>;
 interface WinBoxMinimizeProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 const WinBoxMinimize = React.forwardRef<WinBoxMinimizeElement, WinBoxMinimizeProps>((props, forwardedRef) => {
-  return <Primitive.div {...props} ref={forwardedRef} />;
+  return <Primitive.button type="button" {...props} ref={forwardedRef} />;
 });
 
 WinBoxMinimize.displayName = MINIMIZE_NAME;
@@ -256,13 +263,13 @@ WinBoxMinimize.displayName = MINIMIZE_NAME;
 
 const MAXIMIZE_NAME = 'WinBoxMaximize';
 
-type WinBoxMaximizeElement = React.ElementRef<typeof Primitive.div>;
+type WinBoxMaximizeElement = React.ElementRef<typeof Primitive.button>;
 interface WinBoxMaximizeProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 const WinBoxMaximize = React.forwardRef<WinBoxMaximizeElement, WinBoxMaximizeProps>((props, forwardedRef) => {
-  return <Primitive.div {...props} ref={forwardedRef} />;
+  return <Primitive.button type="button" {...props} ref={forwardedRef} />;
 });
 
 WinBoxMaximize.displayName = MAXIMIZE_NAME;
@@ -273,13 +280,13 @@ WinBoxMaximize.displayName = MAXIMIZE_NAME;
 
 const FULLSCREEN_NAME = 'WinBoxFullScreen';
 
-type WinBoxFullScreenElement = React.ElementRef<typeof Primitive.div>;
+type WinBoxFullScreenElement = React.ElementRef<typeof Primitive.button>;
 interface WinBoxFullScreenProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 const WinBoxFullScreen = React.forwardRef<WinBoxFullScreenElement, WinBoxFullScreenProps>((props, forwardedRef) => {
-  return <Primitive.div {...props} ref={forwardedRef} />;
+  return <Primitive.button type="button" {...props} ref={forwardedRef} />;
 });
 
 WinBoxFullScreen.displayName = FULLSCREEN_NAME;
@@ -290,13 +297,13 @@ WinBoxFullScreen.displayName = FULLSCREEN_NAME;
 
 const CLOSE_NAME = 'WinBoxClose';
 
-type WinBoxCloseElement = React.ElementRef<typeof Primitive.div>;
+type WinBoxCloseElement = React.ElementRef<typeof Primitive.button>;
 interface WinBoxCloseProps {
-  children?: React.ReactNode;
+  asChild: boolean;
 }
 
 const WinBoxClose = React.forwardRef<WinBoxCloseElement, WinBoxCloseProps>((props, forwardedRef) => {
-  return <Primitive.div {...props} ref={forwardedRef} />;
+  return <Primitive.button type="button" {...props} ref={forwardedRef} />;
 });
 
 WinBoxClose.displayName = CLOSE_NAME;
@@ -309,6 +316,7 @@ const BODY_NAME = 'WinBoxBody';
 
 type WinBoxBodyElement = React.ElementRef<typeof Primitive.div>;
 interface WinBoxBodyProps {
+  asChild: boolean;
   children?: React.ReactNode;
 }
 
@@ -326,7 +334,9 @@ const RESIZE_NAME = 'WinBoxResize';
 
 type WinBoxResizeElement = React.ElementRef<typeof Primitive.div>;
 interface WinBoxResizeProps {
-  children?: React.ReactNode;
+  asChild: boolean;
+  /** 窗口边缘拖动类型 */
+  type?: 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
 }
 
 const WinBoxResize = React.forwardRef<WinBoxResizeElement, WinBoxResizeProps>((props, forwardedRef) => {
