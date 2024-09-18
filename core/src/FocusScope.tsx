@@ -83,4 +83,17 @@ FocusScope.displayName = FOCUS_SCOPE_NAME;
  * FocusScope stack
  * -----------------------------------------------------------------------------------------------*/
 
-function createFocusScopesStack() {}
+const focusScopesStack = createFocusScopesStack();
+
+function createFocusScopesStack() {
+  let stack = [];
+
+  let zIndex = 1;
+
+  return {
+    getIndex(index: number) {
+      zIndex = index;
+      return ++zIndex;
+    },
+  };
+}

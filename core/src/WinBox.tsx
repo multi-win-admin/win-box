@@ -2,7 +2,6 @@ import * as React from 'react';
 
 import { useId } from '@radix-ui/react-id';
 import { Portal as PortalPrimitive } from '@radix-ui/react-portal';
-import { useStackStore } from './stack';
 import { parseToPxOfDefault } from './lib/helper';
 import { Primitive } from '@radix-ui/react-primitive';
 import { createContext } from './lib/context';
@@ -17,6 +16,9 @@ const WIN_BOX_NAME = 'WinBox';
 
 type WinBoxContextValue = {
   contentId: string;
+  open: boolean;
+  modal: boolean;
+  hide: boolean;
 };
 
 const [WinBoxProvider, useWinBoxContext] = createContext<WinBoxContextValue>(WIN_BOX_NAME);
@@ -102,14 +104,17 @@ interface WinBoxPortalProps {
 const WinBoxPortal: React.FC<WinBoxPortalProps> = (props) => {
   const { children, container } = props;
 
+  const context = useWinBoxContext(TRIGGER_NAME);
+
   return (
     <>
-      {React.Children.map(children, (child) => (
-        // DOTO 隐藏dom
-        <PortalPrimitive asChild container={container}>
-          {child}
-        </PortalPrimitive>
-      ))}
+      {context.open &&
+        React.Children.map(children, (child) => (
+          // DOTO 隐藏dom
+          <PortalPrimitive asChild container={container}>
+            {child}
+          </PortalPrimitive>
+        ))}
     </>
   );
 };
@@ -128,7 +133,9 @@ interface WinBoxOverlayProps {
 }
 
 const WinBoxOverlay = React.forwardRef<WinBoxOverlayElement, WinBoxOverlayProps>((props, forwardedRef) => {
-  return <Primitive.div {...props} ref={forwardedRef} />;
+  const context = useWinBoxContext(OVERLAY_NAME);
+
+  return context.modal && context.open ? <Primitive.div {...props} ref={forwardedRef} /> : null;
 });
 
 WinBoxOverlay.displayName = OVERLAY_NAME;
@@ -147,10 +154,29 @@ interface WinBoxContentProps {
 const WinBoxContent = React.forwardRef<WinBoxContentElement, WinBoxContentProps>((props, forwardedRef) => {
   const context = useWinBoxContext(TRIGGER_NAME);
 
-  return;
+  return context.open && (context.modal ? <div></div> : <div></div>);
 });
 
 WinBoxContent.displayName = CONTENT_NAME;
+
+/* -----------------------------------------------------------------------------------------------*/
+
+/* -----------------------------------------------------------------------------------------------*/
+
+/* -----------------------------------------------------------------------------------------------*/
+
+type WinBoxContentImplElement = React.ElementRef<typeof Primitive.div>;
+interface WinBoxContentImplProps {
+  // DOTO
+}
+
+const WinBoxContentImpl = React.forwardRef<WinBoxContentImplElement, WinBoxContentImplProps>((props, forwardedRef) => {
+  const context = useWinBoxContext(CONTENT_NAME);
+
+  return <Primitive.div {...props} ref={forwardedRef} />;
+});
+
+WinBoxContentImpl.displayName = CONTENT_NAME;
 
 /* -------------------------------------------------------------------------------------------------
  * WinBoxHeader
